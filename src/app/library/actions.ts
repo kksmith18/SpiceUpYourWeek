@@ -23,13 +23,14 @@ export type RecipeInput = {
 
 export async function upsertRecipe(input: RecipeInput) {
   const supabase = await createClient();
+  // TEMP: auth is disabled during solo testing (see lib/supabase/middleware.ts),
+  // so there's no signed-in user yet — user_id falls back to the DB default.
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in");
 
   const row = {
-    user_id: user.id,
+    ...(user ? { user_id: user.id } : {}),
     code: input.code,
     name: input.name,
     tag: input.tag,

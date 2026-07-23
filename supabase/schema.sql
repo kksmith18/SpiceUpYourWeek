@@ -4,7 +4,7 @@
 
 create table if not exists recipes (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  user_id uuid default auth.uid() references auth.users (id) on delete cascade,
   code text not null default '',
   name text not null,
   tag text not null default 'Dinner',
@@ -24,7 +24,7 @@ create table if not exists recipes (
 
 create table if not exists workouts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  user_id uuid default auth.uid() references auth.users (id) on delete cascade,
   name text not null,
   tag text not null default 'Legs',
   minutes integer not null default 0,
@@ -36,7 +36,7 @@ create table if not exists workouts (
 
 create table if not exists pantry_ignore (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  user_id uuid default auth.uid() references auth.users (id) on delete cascade,
   name text not null,
   created_at timestamptz not null default now()
 );
