@@ -24,13 +24,11 @@ export type Recipe = {
 };
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MEAL_TAGS = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
 type FormState = {
   id?: string;
   code: string;
   name: string;
-  tag: string;
   mainProtein: string;
   minutes: string;
   dayLock: string;
@@ -48,7 +46,6 @@ const emptyForm: FormState = {
   id: undefined,
   code: "",
   name: "",
-  tag: "Dinner",
   mainProtein: "",
   minutes: "25",
   dayLock: "",
@@ -121,7 +118,7 @@ export function RecipeLibrary({ initialRecipes }: { initialRecipes: Recipe[] }) 
         id: form.id,
         code: form.code.trim(),
         name: form.name.trim(),
-        tag: form.tag,
+        tag: "Dinner",
         mainProtein: form.mainProtein.trim(),
         minutes: Number(form.minutes) || 0,
         dayLock: form.dayLock,
@@ -146,7 +143,6 @@ export function RecipeLibrary({ initialRecipes }: { initialRecipes: Recipe[] }) 
       id: r.id,
       code: r.code,
       name: r.name,
-      tag: r.tag,
       mainProtein: r.main_protein,
       minutes: String(r.minutes),
       dayLock: r.day_lock,
@@ -190,18 +186,6 @@ export function RecipeLibrary({ initialRecipes }: { initialRecipes: Recipe[] }) 
         <div className="flex flex-wrap gap-3">
           {textField("Name", form.name, (v) => set("name", v), { placeholder: "Turkey Chili", required: true })}
           {textField("Min", form.minutes, (v) => set("minutes", v), { type: "number", min: 0 })}
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">Type</span>
-            <select
-              value={form.tag}
-              onChange={(e) => set("tag", e.target.value)}
-              className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
-            >
-              {MEAL_TAGS.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">Day lock</span>
             <select
@@ -265,7 +249,7 @@ export function RecipeLibrary({ initialRecipes }: { initialRecipes: Recipe[] }) 
                     {r.code && <span className="text-neutral-400"> ({r.code})</span>}
                   </span>
                   <span className="block font-mono text-xs text-neutral-500">
-                    {r.minutes} min · {r.tag}
+                    {r.minutes} min
                     {r.main_protein && ` · ${r.main_protein}`}
                     {r.day_lock && ` · ${r.day_lock} only`} · max {r.max_per_week}/wk
                   </span>

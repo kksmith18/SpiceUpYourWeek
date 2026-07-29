@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/login/actions";
+import { NavBar } from "@/components/NavBar";
 import { RecipeLibrary } from "./RecipeLibrary";
 
 export default async function LibraryPage() {
@@ -11,14 +11,11 @@ export default async function LibraryPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Your recipe library</h1>
-          <p className="text-sm text-neutral-500">Every recipe you add here is only visible to you.</p>
-        </div>
-        <form action={signOut}>
-          <button className="text-sm text-neutral-500 hover:text-neutral-800">Sign out</button>
-        </form>
+      <NavBar active="library" />
+
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-neutral-900">Your recipe library</h1>
+        <p className="text-sm text-neutral-500">Every recipe you add here is only visible to you.</p>
       </div>
 
       {error && (
