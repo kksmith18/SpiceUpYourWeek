@@ -15,7 +15,12 @@ type DbRecipe = {
   max_per_week: number;
   other: string[];
   optional: string[];
+  instructions: string[];
+  notes: string;
 };
+
+const DEFAULT_ACTIVE_DAYS: Day[] = ["Mon", "Tue", "Wed", "Thu"];
+const ACTIVE_DAYS_STORAGE_KEY = "spiceup:activeDays";
 
 function getWeekStart(d: Date): Date {
   const date = new Date(d);
@@ -34,7 +39,7 @@ function formatShortDate(d: Date): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-type StoredState = {
+type StoredWeekState = {
   offSlotByDay: Partial<Record<Day, string>>;
   seedCounter: number;
 };
@@ -52,29 +57,49 @@ export function ScheduleView({
 
   const [offSlotByDay, setOffSlotByDay] = useState<Partial<Record<Day, string>>>({});
   const [seedCounter, setSeedCounter] = useState(1);
+  const [activeDaySet, setActiveDaySet] = useState<Set<Day>>(new Set(DEFAULT_ACTIVE_DAYS));
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [expandedDay, setExpandedDay] = useState<Day | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(storageKey);
     if (raw) {
       try {
-        const parsed: StoredState = JSON.parse(raw);
+        const parsed: StoredWeekState = JSON.parse(raw);
         setOffSlotByDay(parsed.offSlotByDay ?? {});
         setSeedCounter(parsed.seedCounter ?? 1);
       } catch {
         // ignore malformed local storage
       }
     }
+
+    const rawDays = window.localStorage.getItem(ACTIVE_DAYS_STORAGE_KEY);
+    if (rawDays) {
+      try {
+        const parsedDays: Day[] = JSON.parse(rawDays);
+        setActiveDaySet(new Set(parsedDays));
+      } catch {
+        // ignore malformed local storage
+      }
+    }
+
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
   useEffect(() => {
     if (!loaded) return;
-    const state: StoredState = { offSlotByDay, seedCounter };
+    const state: StoredWeekState = { offSlotByDay, seedCounter };
     window.localStorage.setItem(storageKey, JSON.stringify(state));
   }, [loaded, storageKey, offSlotByDay, seedCounter]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    window.localStorage.setItem(ACTIVE_DAYS_STORAGE_KEY, JSON.stringify([...activeDaySet]));
+  }, [loaded, activeDaySet]);
+
+  const activeDays = useMemo(() => DAYS.filter((d) => activeDaySet.has(d)), [activeDaySet]);
 
   const dayDates = useMemo(() => {
     const map = new Map<Day, Date>();
@@ -101,10 +126,11 @@ export function ScheduleView({
     () =>
       generateSchedule({
         recipes: shufflerRecipes,
+        days: activeDays,
         offSlotByDay,
         seed: `${weekKey}:${seedCounter}`,
       }),
-    [shufflerRecipes, offSlotByDay, weekKey, seedCounter]
+    [shufflerRecipes, activeDays, offSlotByDay, weekKey, seedCounter]
   );
 
   const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
@@ -150,6 +176,15 @@ export function ScheduleView({
     });
   }
 
+  function toggleActiveDay(day: Day) {
+    setActiveDaySet((prev) => {
+      const next = new Set(prev);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -165,6 +200,29 @@ export function ScheduleView({
           </button>
         </div>
 
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Dinner nights
+          </span>
+          {DAYS.map((day) => {
+            const active = activeDaySet.has(day);
+            return (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleActiveDay(day)}
+                className={
+                  active
+                    ? "rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                    : "rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-neutral-500"
+                }
+              >
+                {day}
+              </button>
+            );
+          })}
+        </div>
+
         {result.warnings.length > 0 && (
           <div className="mb-4 flex flex-col gap-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             {result.warnings.map((w, i) => (
@@ -173,54 +231,118 @@ export function ScheduleView({
           </div>
         )}
 
+        {activeDays.length === 0 && (
+          <p className="py-3 text-sm italic text-neutral-400">
+            No dinner nights selected — pick at least one day above.
+          </p>
+        )}
+
         <div className="flex flex-col divide-y divide-neutral-100">
           {result.assignments.map((a) => {
             const date = dayDates.get(a.day)!;
             const recipe = a.kind === "recipe" ? recipeById.get(a.recipeId) : undefined;
+            const expanded = expandedDay === a.day && Boolean(recipe);
             return (
-              <div key={a.day} className="flex items-center gap-3 py-3">
-                <div className="w-16 shrink-0 text-sm font-medium text-neutral-500">
-                  {a.day} <span className="text-neutral-400">{formatShortDate(date)}</span>
-                </div>
+              <div key={a.day} className="py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-16 shrink-0 text-sm font-medium text-neutral-500">
+                    {a.day} <span className="text-neutral-400">{formatShortDate(date)}</span>
+                  </div>
 
-                <div className="flex-1">
-                  {a.kind === "offSlot" && (
-                    <span className="text-sm italic text-neutral-500">
-                      {OFF_SLOTS.find((o) => o.id === a.offSlotId)?.name ?? a.offSlotId}
-                    </span>
-                  )}
-                  {a.kind === "unassigned" && (
-                    <span className="text-sm italic text-amber-700">No eligible recipe</span>
-                  )}
-                  {a.kind === "recipe" && recipe && (
-                    <span className="text-sm text-neutral-900">
-                      {recipe.name}
-                      <span className="ml-2 font-mono text-xs text-neutral-400">
-                        {recipe.minutes} min · {recipe.main_protein}
+                  <div className="flex-1">
+                    {a.kind === "offSlot" && (
+                      <span className="text-sm italic text-neutral-500">
+                        {OFF_SLOTS.find((o) => o.id === a.offSlotId)?.name ?? a.offSlotId}
                       </span>
-                    </span>
-                  )}
+                    )}
+                    {a.kind === "unassigned" && (
+                      <span className="text-sm italic text-amber-700">No eligible recipe</span>
+                    )}
+                    {a.kind === "recipe" && recipe && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedDay(expanded ? null : a.day)}
+                        className="text-left text-sm text-neutral-900 underline decoration-neutral-300 decoration-dotted underline-offset-4 hover:decoration-neutral-600"
+                      >
+                        {recipe.name}
+                        <span className="ml-2 font-mono text-xs text-neutral-400">
+                          {recipe.minutes} min · {recipe.main_protein}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    value={offSlotByDay[a.day] ?? ""}
+                    onChange={(e) =>
+                      setOffSlotByDay((prev) => {
+                        const next = { ...prev };
+                        if (e.target.value) next[a.day] = e.target.value;
+                        else delete next[a.day];
+                        return next;
+                      })
+                    }
+                    className="shrink-0 rounded-md border border-neutral-300 px-2 py-1 text-xs"
+                  >
+                    <option value="">Cook</option>
+                    {OFF_SLOTS.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <select
-                  value={offSlotByDay[a.day] ?? ""}
-                  onChange={(e) =>
-                    setOffSlotByDay((prev) => {
-                      const next = { ...prev };
-                      if (e.target.value) next[a.day] = e.target.value;
-                      else delete next[a.day];
-                      return next;
-                    })
-                  }
-                  className="shrink-0 rounded-md border border-neutral-300 px-2 py-1 text-xs"
-                >
-                  <option value="">Cook</option>
-                  {OFF_SLOTS.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
+                {expanded && recipe && (
+                  <div className="mt-3 ml-[76px] flex flex-wrap gap-5 rounded-md border border-neutral-100 bg-neutral-50 p-3 text-sm">
+                    {recipe.other.length > 0 && (
+                      <div className="min-w-[140px]">
+                        <div className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                          Ingredients
+                        </div>
+                        <ul className="list-disc pl-4 text-neutral-700">
+                          {recipe.other.map((line, i) => (
+                            <li key={i}>{line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {recipe.optional.length > 0 && (
+                      <div className="min-w-[140px]">
+                        <div className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                          Optional add-ins
+                        </div>
+                        <ul className="list-disc pl-4 text-neutral-700">
+                          {recipe.optional.map((line, i) => (
+                            <li key={i}>{line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="min-w-[200px] flex-1">
+                      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                        Instructions
+                      </div>
+                      {recipe.instructions.length ? (
+                        <ol className="list-decimal pl-4 text-neutral-700">
+                          {recipe.instructions.map((line, i) => (
+                            <li key={i}>{line}</li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <span className="italic text-neutral-400">None added</span>
+                      )}
+                    </div>
+                    {recipe.notes && (
+                      <div className="min-w-[140px]">
+                        <div className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                          Notes
+                        </div>
+                        <p className="text-neutral-700">{recipe.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

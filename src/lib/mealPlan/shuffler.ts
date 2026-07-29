@@ -1,5 +1,5 @@
 import { createRng } from "./rng";
-import { DAYS, type Day } from "./constants";
+import type { Day } from "./constants";
 
 // Pure by design: no UI, no DB, no Date.now(). Same input + seed always
 // produces the same week, so a shuffle can be reproduced, shared, or undone.
@@ -18,6 +18,8 @@ export type ScheduleAssignment =
 
 export type GenerateScheduleInput = {
   recipes: ShufflerRecipe[];
+  /** Which days need a slot filled, in order — callers control the week's size (e.g. Mon-Thu only). */
+  days: Day[];
   /** Days already spoken for by an OffSlot (eating out, etc.) — the shuffler skips these. */
   offSlotByDay: Partial<Record<Day, string>>;
   seed: string;
@@ -35,7 +37,7 @@ export function generateSchedule(input: GenerateScheduleInput): GenerateSchedule
   const warnings: string[] = [];
   let prevProtein: string | null = null;
 
-  for (const day of DAYS) {
+  for (const day of input.days) {
     const offSlotId = input.offSlotByDay[day];
     if (offSlotId) {
       assignments.push({ day, kind: "offSlot", offSlotId });

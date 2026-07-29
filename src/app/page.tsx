@@ -8,7 +8,9 @@ export default async function Home() {
   const [{ data: recipes, error: recipesError }, { data: pantryIgnore }] = await Promise.all([
     supabase
       .from("recipes")
-      .select("id, code, name, main_protein, minutes, day_lock, max_per_week, other, optional")
+      .select(
+        "id, code, name, main_protein, minutes, day_lock, max_per_week, other, optional, instructions, notes"
+      )
       .order("code", { ascending: true }),
     supabase.from("pantry_ignore").select("name"),
   ]);
@@ -20,7 +22,7 @@ export default async function Home() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-neutral-900">This week&apos;s dinners</h1>
         <p className="text-sm text-neutral-500">
-          Shuffle your library into a 7-day plan, then pull the grocery list for it.
+          Shuffle your library into a plan for the days you pick, then pull the grocery list for it.
         </p>
       </div>
 

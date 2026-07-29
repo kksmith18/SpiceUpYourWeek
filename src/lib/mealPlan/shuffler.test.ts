@@ -6,26 +6,39 @@ function recipe(id: string, mainProtein: string, opts: Partial<ShufflerRecipe> =
   return { id, mainProtein, dayLock: "", maxPerWeek: 1, ...opts };
 }
 
+const ALL_DAYS = [...DAYS];
+
 describe("generateSchedule", () => {
   it("is deterministic for a given seed", () => {
     const recipes = Array.from({ length: 10 }, (_, i) => recipe(`r${i}`, `protein${i % 3}`));
-    const a = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
-    const b = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
+    const a = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
+    const b = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
     expect(a).toEqual(b);
   });
 
   it("produces a different result for a different seed", () => {
     const recipes = Array.from({ length: 10 }, (_, i) => recipe(`r${i}`, `protein${i % 3}`));
-    const a = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
-    const b = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-2" });
+    const a = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
+    const b = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-2" });
     expect(a.assignments).not.toEqual(b.assignments);
   });
 
   it("fills all 7 days when enough unlocked recipes exist", () => {
     const recipes = Array.from({ length: 10 }, (_, i) => recipe(`r${i}`, `protein${i % 5}`));
-    const result = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
+    const result = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
     expect(result.assignments).toHaveLength(7);
     expect(result.assignments.every((a) => a.kind === "recipe")).toBe(true);
+  });
+
+  it("only fills the requested days when given a shorter week", () => {
+    const recipes = Array.from({ length: 10 }, (_, i) => recipe(`r${i}`, `protein${i % 5}`));
+    const result = generateSchedule({
+      recipes,
+      days: ["Mon", "Tue", "Wed", "Thu"],
+      offSlotByDay: {},
+      seed: "week-1",
+    });
+    expect(result.assignments.map((a) => a.day)).toEqual(["Mon", "Tue", "Wed", "Thu"]);
   });
 
   it("respects dayLock as a hard constraint", () => {
@@ -33,7 +46,7 @@ describe("generateSchedule", () => {
       recipe("fri-only", "steak", { dayLock: "Fri" }),
       ...Array.from({ length: 9 }, (_, i) => recipe(`r${i}`, `protein${i % 5}`)),
     ];
-    const result = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
+    const result = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
     for (const a of result.assignments) {
       if (a.kind === "recipe" && a.recipeId === "fri-only") {
         expect(a.day).toBe("Fri");
@@ -41,9 +54,23 @@ describe("generateSchedule", () => {
     }
   });
 
+  it("excludes a day-locked recipe entirely when its day isn't in the requested range", () => {
+    const recipes = [
+      recipe("fri-only", "steak", { dayLock: "Fri" }),
+      ...Array.from({ length: 5 }, (_, i) => recipe(`r${i}`, `protein${i}`)),
+    ];
+    const result = generateSchedule({
+      recipes,
+      days: ["Mon", "Tue", "Wed", "Thu"],
+      offSlotByDay: {},
+      seed: "week-1",
+    });
+    expect(result.assignments.some((a) => a.kind === "recipe" && a.recipeId === "fri-only")).toBe(false);
+  });
+
   it("never uses a recipe more times than maxPerWeek", () => {
     const recipes = [recipe("only-one", "chicken", { maxPerWeek: 1 })];
-    const result = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
+    const result = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
     const uses = result.assignments.filter((a) => a.kind === "recipe" && a.recipeId === "only-one");
     expect(uses.length).toBeLessThanOrEqual(1);
     // the other 6 days should be flagged unassigned since there's nothing else to place
@@ -54,6 +81,7 @@ describe("generateSchedule", () => {
     const recipes = Array.from({ length: 10 }, (_, i) => recipe(`r${i}`, `protein${i % 5}`));
     const result = generateSchedule({
       recipes,
+      days: ALL_DAYS,
       offSlotByDay: { Wed: "eating-out", Sun: "dinner-from-julian" },
       seed: "week-1",
     });
@@ -70,7 +98,7 @@ describe("generateSchedule", () => {
       recipe("beef", "Ground beef"),
       recipe("salmon", "Salmon"),
     ];
-    const result = generateSchedule({ recipes, offSlotByDay: {}, seed: "variety-check" });
+    const result = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "variety-check" });
     const proteinById = new Map(recipes.map((r) => [r.id, r.mainProtein]));
     let backToBack = 0;
     let prev: string | null = null;
@@ -88,9 +116,9 @@ describe("generateSchedule", () => {
     expect(backToBack).toBeLessThan(5);
   });
 
-  it("covers all 7 named days exactly once", () => {
+  it("covers exactly the requested days, in order", () => {
     const recipes = Array.from({ length: 10 }, (_, i) => recipe(`r${i}`, `protein${i % 5}`));
-    const result = generateSchedule({ recipes, offSlotByDay: {}, seed: "week-1" });
-    expect(result.assignments.map((a) => a.day)).toEqual([...DAYS]);
+    const result = generateSchedule({ recipes, days: ALL_DAYS, offSlotByDay: {}, seed: "week-1" });
+    expect(result.assignments.map((a) => a.day)).toEqual(ALL_DAYS);
   });
 });
