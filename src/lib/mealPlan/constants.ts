@@ -12,6 +12,9 @@ export const OFF_SLOTS: OffSlot[] = [
   { id: "dinner-from-julian", name: "Dinner from Julian" },
 ];
 
+// Same OffSlot shape, reused for workout rest days.
+export const WORKOUT_OFF_SLOTS: OffSlot[] = [{ id: "rest-day", name: "Rest day" }];
+
 // Same breakfast/lunch combo (oats or a shake) most days, so it's a flat
 // weekly grocery add rather than something scheduled or shuffled.
 export const STANDING_ITEMS: string[] = [
@@ -29,3 +32,5 @@ export const STANDING_ITEMS: string[] = [
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export type Day = (typeof DAYS)[number];
+
+export const DEFAULT_ACTIVE_WORKOUT_DAYS: Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];

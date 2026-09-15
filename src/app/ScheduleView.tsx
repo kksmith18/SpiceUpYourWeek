@@ -47,9 +47,12 @@ type StoredWeekState = {
 export function ScheduleView({
   recipes,
   pantryIgnore,
+  sharedEpoch,
 }: {
   recipes: DbRecipe[];
   pantryIgnore: string[];
+  /** Bumped by the page-level "Shuffle week" button so dinners and workouts reshuffle together. */
+  sharedEpoch: number;
 }) {
   const weekStart = useMemo(() => getWeekStart(new Date()), []);
   const weekKey = formatDateKey(weekStart);
@@ -128,9 +131,9 @@ export function ScheduleView({
         recipes: shufflerRecipes,
         days: activeDays,
         offSlotByDay,
-        seed: `${weekKey}:${seedCounter}`,
+        seed: `${weekKey}:${sharedEpoch}:${seedCounter}`,
       }),
-    [shufflerRecipes, activeDays, offSlotByDay, weekKey, seedCounter]
+    [shufflerRecipes, activeDays, offSlotByDay, weekKey, sharedEpoch, seedCounter]
   );
 
   const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
@@ -189,14 +192,12 @@ export function ScheduleView({
     <div className="flex flex-col gap-8">
       <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-neutral-900">
-            Week of {formatShortDate(weekStart)}
-          </h2>
+          <h2 className="text-lg font-semibold text-neutral-900">Dinners</h2>
           <button
             onClick={() => setSeedCounter((c) => c + 1)}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-neutral-500"
           >
-            Reshuffle
+            Reshuffle dinners only
           </button>
         </div>
 

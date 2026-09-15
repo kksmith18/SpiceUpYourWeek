@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 
-export function NavBar({ active }: { active: "schedule" | "library" }) {
-  const linkClass = (tab: "schedule" | "library") =>
+type Tab = "schedule" | "library" | "workouts";
+
+export function NavBar({ active }: { active: Tab }) {
+  const linkClass = (tab: Tab) =>
     tab === active
       ? "text-sm font-medium text-neutral-900"
       : "text-sm font-medium text-neutral-400 hover:text-neutral-700";
@@ -15,6 +17,9 @@ export function NavBar({ active }: { active: "schedule" | "library" }) {
         </Link>
         <Link href="/library" className={linkClass("library")}>
           Recipes
+        </Link>
+        <Link href="/workouts" className={linkClass("workouts")}>
+          Workouts
         </Link>
       </nav>
       <form action={signOut}>
